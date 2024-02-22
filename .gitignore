@@ -1,5 +1,5 @@
 reports/figures
-data/
+data/raw
 nohup.out
 .venv
 .DS_Store
