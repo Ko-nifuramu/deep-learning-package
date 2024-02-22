@@ -1,0 +1,5 @@
+reports/figures
+data/
+nohup.out
+.venv
+.DS_Store
