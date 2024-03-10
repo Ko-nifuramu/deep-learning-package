@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "murata-lab-turtorial-1"
+name = "deep-learning-package"
 version = "0.1.0"
 description = ""
 authors = ["Ko-nifuramu <kotaro22235963@gmail.com>"]
@@ -11,7 +11,13 @@ numpy = "^1.26.4"
 torch = "^2.2.0"
 matplotlib = "^3.8.3"
 tqdm = "^4.66.2"
+pyyaml = "^6.0.1"
 
+
+[tool.poetry.group.dev.dependencies]
+black = "^24.2.0"
+flake8 = "^7.0.0"
+isort = "^5.13.2"
 
 [build-system]
 requires = ["poetry-core"]
