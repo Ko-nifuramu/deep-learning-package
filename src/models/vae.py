@@ -37,7 +37,7 @@ class VAE(nn.Module):
         z = self.reparameterize(mean, log_var)
         x_hat = self.decoder(z)
         return z, x_hat
-    
+
     def forward_z(self, x):
         mean, log_var = self.encoder(x)
         z = self.reparameterize(mean, log_var)

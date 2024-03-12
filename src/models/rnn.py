@@ -1,7 +1,8 @@
 import torch.nn as nn
 import torch
 
-#jointを出力するモデルをactionモデルとして分けるか迷ったが、助長な気がしたのでRNNモデルに統合
+
+# jointを出力するモデルをactionモデルとして分けるか迷ったが、助長な気がしたのでRNNモデルに統合
 class GRU(nn.Module):
     def __init__(
         self,
@@ -25,10 +26,16 @@ class GRU(nn.Module):
             batch_first=True,
         )
 
-        self.mean_layer = self._build_linear_layer(rnn_hidden_dim, mean_hidden_dims, z_dim)
-        self.log_var_layer = self._build_linear_layer(rnn_hidden_dim, log_var_hidden_dims, z_dim)
-        self.joint_layer = self._build_linear_layer(rnn_hidden_dim, joint_hidden_dims, joint_dim)
-        
+        self.mean_layer = self._build_linear_layer(
+            rnn_hidden_dim, mean_hidden_dims, z_dim
+        )
+        self.log_var_layer = self._build_linear_layer(
+            rnn_hidden_dim, log_var_hidden_dims, z_dim
+        )
+        self.joint_layer = self._build_linear_layer(
+            rnn_hidden_dim, joint_hidden_dims, joint_dim
+        )
+
     def forward(self, z_i_t, z_i_g, j_pre):
         z_i_t = z_i_t.reshape(j_pre.shape[0], -1, self.z_dim)
         z_i_g = z_i_g.reshape(j_pre.shape[0], -1, self.z_dim)
@@ -60,8 +67,8 @@ class GRU(nn.Module):
         j_next_out = j_next_out.reshape(mean.shape[0], mean.shape[1], self.joint_dim)
 
         return mean, log_var, j_next_out, h_next
-    
-    def _build_linear_layer(self, input_dim: int, hidden_dims:tuple, output_dim:int):
+
+    def _build_linear_layer(self, input_dim: int, hidden_dims: tuple, output_dim: int):
         linear_layers = []
         for hidden_dim in hidden_dims:
             linear_layers.append(nn.Linear(input_dim, hidden_dim))

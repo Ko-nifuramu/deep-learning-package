@@ -3,28 +3,29 @@ import torch.nn as nn
 from src.models.vae import VAE
 from src.models.rnn import RNN
 
+
 class VaeRnnAgent(nn.Module):
     def __init__(
-        self, 
+        self,
         image_shape: tuple,
         joint_dim: int,
         z_dim: int,
-        vae_model:VAE,
-        rnn_model:RNN,
+        vae_model: VAE,
+        rnn_model: RNN,
         kld_weight: float,
         kld_hat_weight: float,
         vae_weight: float,
         joint_weight: float,
     ):
         super(VaeRnnAgent, self).__init__()
-        
+
         self.image_shape = image_shape
         self.joint_dim = joint_dim
         self.z_dim = z_dim
-        
+
         self.vae = vae_model
         self.rnn = rnn_model
-        
+
         self.var = self.vae.var
         self.beta = kld_weight
         self.beta_hat = kld_hat_weight
@@ -47,7 +48,9 @@ class VaeRnnAgent(nn.Module):
     def test_step(self, i_pre, j_pre, i_g, h):
         z_i_pre = self.vision_vae.forward_z(i_pre)
         z_i_g = self.vision_vae.forward_z(i_g)
-        mean_hat, log_var_hat, j_next, h = self.rnn.autoregress(z_i_pre, z_i_g, j_pre, h)
+        mean_hat, log_var_hat, j_next, h = self.rnn.autoregress(
+            z_i_pre, z_i_g, j_pre, h
+        )
         z_latent_next = self.vision_vae.reparameterize(mean_hat, log_var_hat)
 
         j_next = torch.tanh(j_next)
