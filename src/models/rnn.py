@@ -1,5 +1,5 @@
-import torch.nn as nn
 import torch
+import torch.nn as nn
 
 
 # jointを出力するモデルをactionモデルとして分けるか迷ったが、助長な気がしたのでRNNモデルに統合

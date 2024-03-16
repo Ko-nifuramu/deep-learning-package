@@ -1,10 +1,20 @@
 import numpy as np
 
 
-def print_shape_and_maxMin(data: np) -> None:
-    print(f"data.shape : {data.shape}")
-    print(f"data_max : {np.max(data)}")
-    print(f"data_min : {np.min(data)}")
+def create_goal_image_data(vision_target_data: np.ndarray) -> np.ndarray:
+    if len(vision_target_data.shape) == 4:
+        vision_goal_data = vision_target_data[-1:, :, :, :]
+    else:
+        vision_goal_data_1step = vision_target_data[:, -1:, :, :, :]
+        for i in range(vision_target_data.shape[1]):
+            if i == 0:
+                vision_goal_data = vision_goal_data_1step
+                continue
+            vision_goal_data = np.concatenate(
+                [vision_goal_data, vision_goal_data_1step], axis=1
+            )
+
+    return vision_goal_data
 
 
 def joint_regularization(joint_data: np):

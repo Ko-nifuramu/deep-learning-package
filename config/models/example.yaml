@@ -1,0 +1,60 @@
+seed: 12
+
+data_path:
+  image_data: "data/3easy/play/half_1_2_seed12_42_timestep100_datanum1200_image_data.npy"
+  joint_data: "data/3easy/play/half_1_2_seed12_42_timestep100_datanum1200_joint_data.npy"
+
+device:
+  gpu_id: 0
+
+dataset:
+  train_time_step: 50
+  image_shape: 
+    - 3
+    - 48
+    - 64
+  image_noise_std: 0.1
+  joint_noise_std: 0.1
+  trainsample_ratio: 0.8
+  batch_size: 120
+
+optimize_setting:
+  world_model:
+    epochs: 7500
+    lr: 0.001
+    optimizer: AdaBelief
+    grad_clip: 100
+    reconst_weight: 1
+    embed_weight: 1
+    lower_kl_weight: 100
+    higher_kl_weight: 0.001
+
+rnn:
+  input_dim: 42
+  rnn_hidden_dim: 288
+  num_layers: 2
+  joint_dim: 169
+  z_dim: 80
+  mean_hidden_dims: [288]
+  log_var_hidden_dims: [288]
+  joint_hidden_dims: [169, 80, 30]
+  activation: ReLU
+
+
+vae:
+  conv_activation: Mish
+  reconst_activation: Sigmoid
+  parameter:
+    encoder:
+      obs_shape: [3, 48, 64]
+      channels: [8, 16, 32]
+      kernels: [3, 4, 4]
+      strides: [1, 2, 2]
+      paddings: [1, 1, 1]
+    decoder:
+      dist_std: 1.0
+      obs_shape: [3, 48, 64]
+      channels: [64, 32, 16]
+      kernels: [4, 4, 3]
+      strides: [2, 2, 1]
+      paddings: [1, 1, 1]

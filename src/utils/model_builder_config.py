@@ -1,8 +1,9 @@
-import yaml
-import torch.nn as nn
 import torch.distributions as td
+import torch.nn as nn
+import yaml
 
 
+# 正直、環境変数に読み込んだほうがいいかも
 def load_config(config_path):
     with open(config_path, "r") as file:
         config = yaml.safe_load(file)
@@ -67,41 +68,3 @@ def world_model_builder(config_path: str):
         rssm_model,
         train_time_step=train_time_step,
     )
-
-
-def MultiLabelImageClassifier_builder(config_path: str):
-    config = load_config(config_path)
-
-    parameter_config = config["parameter"]
-
-    image_classifier_model = MultiLabelImageClassifier(
-        image_shape=tuple(parameter_config["cnn"]["image_shape"]),
-        channels=tuple(parameter_config["cnn"]["channels"]),
-        kernels=tuple(parameter_config["cnn"]["kernels"]),
-        strides=tuple(parameter_config["cnn"]["strides"]),
-        paddings=tuple(parameter_config["cnn"]["paddings"]),
-        fc_hidden_size=parameter_config["fc_hidden_size"],
-        candidate_policy_num=parameter_config["candidate_policy_num"],
-        activation=getattr(nn, parameter_config["conv_activation"]),
-    )
-
-    return image_classifier_model
-
-
-def SingleLabelImageClassifier_builder(config_path: str):
-    config = load_config(config_path)
-
-    parameter_config = config["parameter"]
-
-    image_classifier_model = SingleLabelImageClassifier(
-        image_shape=tuple(parameter_config["cnn"]["image_shape"]),
-        channels=tuple(parameter_config["cnn"]["channels"]),
-        kernels=tuple(parameter_config["cnn"]["kernels"]),
-        strides=tuple(parameter_config["cnn"]["strides"]),
-        paddings=tuple(parameter_config["cnn"]["paddings"]),
-        fc_hidden_size=parameter_config["fc_hidden_size"],
-        num_of_situation_patern=parameter_config["num_of_situation_patern"],
-        activation=getattr(nn, parameter_config["conv_activation"]),
-    )
-
-    return image_classifier_model
