@@ -1,0 +1,15 @@
+version: '3'
+
+tasks:
+  build:
+    cmds:
+      - go build -v -i main.go
+
+  formatter:
+    cmds:
+      - black .
+      - isort .
+    
+  linter:
+    cmds:
+      - flake8 src/
