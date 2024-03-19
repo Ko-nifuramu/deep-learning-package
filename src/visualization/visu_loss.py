@@ -6,9 +6,8 @@ import torch
 def visualize_loss(
     train_loss_dict: dict,
     val_loss_dict: dict,
-    folder_path: str,
     stop_epoch: int,
-    fig_name: str = "",
+    fig_path: str,
 ):
     legend_list = []
 
@@ -32,10 +31,6 @@ def visualize_loss(
     ax.set_title("each_loss")
 
     fig.savefig(
-        "reports/figures/train/"
-        + folder_path
-        + "/"
-        + "Training_loss_"
-        + str(stop_epoch),
+        fig_path + "/Training" + str(stop_epoch),
         bbox_inches="tight",
     )

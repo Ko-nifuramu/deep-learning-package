@@ -1,6 +1,7 @@
 import numpy as np
 import torch
-
+from src.visualization.visu_joint import visualize_joint_test
+from src.data.data_processing import create_goal_image_data
 
 # open-test -> image : open, joint : open
 def open_test(

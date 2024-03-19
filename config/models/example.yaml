@@ -1,60 +1,71 @@
 seed: 12
 
 data_path:
-  image_data: "data/3easy/play/half_1_2_seed12_42_timestep100_datanum1200_image_data.npy"
-  joint_data: "data/3easy/play/half_1_2_seed12_42_timestep100_datanum1200_joint_data.npy"
+  image_data: "data/processed/image_data.npy"
+  joint_data: "data/processed/joint_data.npy"
 
 device:
   gpu_id: 0
 
 dataset:
-  train_time_step: 50
-  image_shape: 
+  obs_shape: 
     - 3
     - 48
     - 64
-  image_noise_std: 0.1
-  joint_noise_std: 0.1
+  joint_dim: 5
+  image_noise_std: 0.05
+  joint_noise_std: 0.05
   trainsample_ratio: 0.8
-  batch_size: 120
+  batch_size: 5
 
 optimize_setting:
-  world_model:
-    epochs: 7500
-    lr: 0.001
-    optimizer: AdaBelief
-    grad_clip: 100
-    reconst_weight: 1
-    embed_weight: 1
-    lower_kl_weight: 100
-    higher_kl_weight: 0.001
+  epochs: 500
+  lr: 0.001
+  kld_weight: 1
+  vae_weight: 1
+  joint_weight: 1
+  optimizer: Adam
+  grad_clip: 100
+  is_scheduler: False
+  scheduler:
+    name: StepLR
+    params:
+      step_size: 100
+      gamma: 0.5
+  is_earlystopping: False
+  earlystopping:
+    patience: 100
+    delta: 0.0001
+  
 
 rnn:
-  input_dim: 42
-  rnn_hidden_dim: 288
-  num_layers: 2
-  joint_dim: 169
-  z_dim: 80
-  mean_hidden_dims: [288]
-  log_var_hidden_dims: [288]
-  joint_hidden_dims: [169, 80, 30]
   activation: ReLU
+  parameter:
+    input_dim: 53 # latent_dim+latent_dim+joint_dim
+    rnn_hidden_dim: 64  
+    num_layers: 1
+    joint_dim: 5
+    latent_dim: 24
+    mean_hidden_dims: []
+    log_var_hidden_dims: []
+    joint_hidden_dims: []
+    activation: ReLU
 
 
 vae:
-  conv_activation: Mish
+  conv_activation: ReLU
   reconst_activation: Sigmoid
+  latent_dim: 24
   parameter:
     encoder:
-      obs_shape: [3, 48, 64]
-      channels: [8, 16, 32]
-      kernels: [3, 4, 4]
+      obs_shape: [3, 32, 32]
+      channels: [4, 8, 16]
+      kernels: [3, 3, 3]
       strides: [1, 2, 2]
-      paddings: [1, 1, 1]
+      paddings: [1, 1, 0]
     decoder:
-      dist_std: 1.0
-      obs_shape: [3, 48, 64]
-      channels: [64, 32, 16]
-      kernels: [4, 4, 3]
-      strides: [2, 2, 1]
+      obs_shape: [3, 32, 32]
+      channels: [32, 16, 8]
+      kernels: [4, 4, 4]
+      strides: [2, 2, 2]
       paddings: [1, 1, 1]

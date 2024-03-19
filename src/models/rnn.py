@@ -10,35 +10,36 @@ class GRU(nn.Module):
         rnn_hidden_dim: int,
         num_layers: int,
         joint_dim: int,
-        z_dim: int,
+        latent_dim: int,
         mean_hidden_dims: tuple = [288],
         log_var_hidden_dims: tuple = [288],
         joint_hidden_dims: tuple = [169, 80, 30],
-        _activation=nn.ReLU(),
+        activation=nn.ReLU(),
     ):
         super(GRU, self).__init__()
-        self.z_dim = z_dim
+        self.latent_dim = latent_dim
         self.joint_dim = joint_dim
+        self._activation = activation
         self.rnn = nn.GRU(
-            input_dim=input_dim,
-            hidden_dim=rnn_hidden_dim,
+            input_size=input_dim,
+            hidden_size=rnn_hidden_dim,
             num_layers=num_layers,
             batch_first=True,
         )
 
         self.mean_layer = self._build_linear_layer(
-            rnn_hidden_dim, mean_hidden_dims, z_dim
+            rnn_hidden_dim, mean_hidden_dims, latent_dim
         )
         self.log_var_layer = self._build_linear_layer(
-            rnn_hidden_dim, log_var_hidden_dims, z_dim
+            rnn_hidden_dim, log_var_hidden_dims, latent_dim
         )
         self.joint_layer = self._build_linear_layer(
             rnn_hidden_dim, joint_hidden_dims, joint_dim
         )
 
     def forward(self, z_i_t, z_i_g, j_pre):
-        z_i_t = z_i_t.reshape(j_pre.shape[0], -1, self.z_dim)
-        z_i_g = z_i_g.reshape(j_pre.shape[0], -1, self.z_dim)
+        z_i_t = z_i_t.reshape(j_pre.shape[0], -1, self.latent_dim)
+        z_i_g = z_i_g.reshape(j_pre.shape[0], -1, self.latent_dim)
         j_pre = j_pre.reshape(j_pre.shape[0], -1, self.joint_dim)
         x = torch.concat([z_i_t, z_i_g, j_pre], dim=2)
 
@@ -53,8 +54,8 @@ class GRU(nn.Module):
         return mean, log_var, j_next_out
 
     def autoregress(self, z_i_t, z_i_g, j_pre, h_pre):
-        z_i_t = z_i_t.reshape(j_pre.shape[0], -1, self.z_dim)
-        z_i_g = z_i_g.reshape(j_pre.shape[0], -1, self.z_dim)
+        z_i_t = z_i_t.reshape(j_pre.shape[0], -1, self.latent_dim)
+        z_i_g = z_i_g.reshape(j_pre.shape[0], -1, self.latent_dim)
         j_pre = j_pre.reshape(j_pre.shape[0], -1, self.joint_dim)
         x = torch.concat([z_i_t, z_i_g, j_pre], dim=2)
 

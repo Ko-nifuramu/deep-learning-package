@@ -1,36 +1,75 @@
 import numpy as np
 import torch
+# import torch_optimizer as optim<- AdaBeliefとか使いたい時に使う
+import torch.optim as optim
 import yaml
-from torch.utils.data import DataLoader
+from torchinfo import summary
+from src.agent import VaeRnnAgent
+from src.data.make_dataloader import create_dataloader
+from src.utils.data_utils import get_device, print_np_data_info, torch_fix_seed, mkdir
+from src.utils.model_builder import rnn_vae_agent_model_builder
+from src.visualization.visu_loss import visualize_loss
 
-from src.models import VaeRnnAgent
-from src.visualization import visualize_loss
 
+def train_agent(config_name: str, config_folder_path: str):
+    config_path = config_folder_path + config_name + ".yaml"
 
-def train_agent(
-    agent: VaeRnnAgent,
-    train_dataloader: DataLoader,
-    val_dataloader: DataLoader,
-    model_name: str,
-    device: torch.device,
-):
-    print(f"=========================\n agent training....\n=========================")
+    with open(config_path, "r") as file:
+        config = yaml.safe_load(file)
 
-    agent.to(device)
-    agent.train()
+    image_data: np.ndarray = np.load(config["data_path"]["image_data"]).transpose(0, 1, 4, 2, 3)/255
+    joint_data: np.ndarray = np.load(config["data_path"]["joint_data"])
+    print_np_data_info(image_data, "image_data")
+    print_np_data_info(joint_data, "joint_data")
 
-    train_loss_dict, val_loss_dict, stop_epoch = agent.fit(
-        train_dataloader, val_dataloader
+    dataset_params = config["dataset"]
+    train_dataloader, val_dataloader = create_dataloader(
+        image_data,
+        joint_data,
+        dataset_params["batch_size"],
+        dataset_params["image_noise_std"],
+        dataset_params["joint_noise_std"],
+        dataset_params["trainsample_ratio"],
     )
 
-    folder_path = "model/" + model_name
-    another_info = "stopepoch" + str(stop_epoch)
+    print(f"=========================\n agent training....\n=========================")
 
-    vae_model, rnn_model = agent.vae, agent.rnn
+    agent = rnn_vae_agent_model_builder(config_path)
+    agent.to(get_device())
+    
+    summary(agent, [(5, 3, 32, 32), (5, 5), (5, 3, 32, 32)])
+    agent.train()
+
+    optimize_setting_config = config["optimize_setting"]
+    optimizer = getattr(optim, optimize_setting_config["optimizer"])(
+        agent.parameters(), lr=optimize_setting_config["lr"]
+    )
+    
+    scheduler = None
+    if "scheduler" in optimize_setting_config:
+        scheduler = getattr(
+            optim.lr_scheduler,
+            optimize_setting_config["scheduler"]["name"],
+        )(optimizer, **optimize_setting_config["scheduler"]["params"])
+
+    train_loss_dict, val_loss_dict, stop_epoch = agent.fit(
+        train_dataloader,
+        val_dataloader,
+        epochs=optimize_setting_config["epochs"],
+        optimizer=optimizer,
+        scheduler=scheduler
+    )
+
+    folder_path = "models/" + config_name
+    another_info = "stopepoch" + str(stop_epoch)
+    
+    mkdir(folder_path)
+    mkdir("reports/figures/"+config_name)
+    vae_model, rnn_model = agent.vision_vae, agent.rnn
     torch.save(vae_model.state_dict(), folder_path + "/vae_" + another_info)
     torch.save(rnn_model.state_dict(), folder_path + "/rnn_" + another_info)
 
-    visualize_loss(train_loss_dict, val_loss_dict, model_name, stop_epoch)
+    visualize_loss(train_loss_dict, val_loss_dict, stop_epoch, "reports/figures/"+config_name)
 
 
 def test_agent(config_name: str, config_folder_path: str):
@@ -41,9 +80,6 @@ def test_agent(config_name: str, config_folder_path: str):
 
     image_data: np.ndarray = np.load(config["data_path"]["image_data"])  # uint8
     joint_data: np.ndarray = np.load(config["data_path"]["joint_data"])
-
-    # play_image_data = play_image_data.transpose(0, 1, 4,2,3)
-
     agent_model = VaeRnnAgent(model_name=config_name, config_path=config_path)
     agent_model.vae.load_state_dict(
         torch.load(
@@ -55,13 +91,15 @@ def test_agent(config_name: str, config_folder_path: str):
 
 
 def main():
+    torch_fix_seed(42)
+
     is_train_agent = True
-    is_test_agent = True
+    is_test_agent = False
 
     config_agent_name_list = ["example"]
 
     for config_name in config_agent_name_list:
-        config_folder_path = "config/model/agent_model/"
+        config_folder_path = "config/models/"
         if is_train_agent:
             train_agent(config_name, config_folder_path)
         if is_test_agent:

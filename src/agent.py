@@ -1,37 +1,35 @@
 import torch
 import torch.nn as nn
-import yaml
 from torch.utils.data import DataLoader
+from tqdm import tqdm
 
-from src.models.rnn import RNN
+from src.models.rnn import GRU as RNN
 from src.models.vae import VAE
-
+from src.visualization.visu_image import gif_from_ndarray
 
 class VaeRnnAgent(nn.Module):
     def __init__(
         self,
-        image_shape: tuple,
+        obs_shape: tuple,
         joint_dim: int,
-        z_dim: int,
+        latent_dim: int,
         vae_model: VAE,
         rnn_model: RNN,
         kld_weight: float,
-        kld_hat_weight: float,
         vae_weight: float,
         joint_weight: float,
     ):
         super(VaeRnnAgent, self).__init__()
 
-        self.image_shape = image_shape
+        self.obs_shape = obs_shape
         self.joint_dim = joint_dim
-        self.z_dim = z_dim
+        self.latent_dim = latent_dim
 
-        self.vae = vae_model
+        self.vision_vae = vae_model
         self.rnn = rnn_model
 
-        self.z_var = self.vae.var
+        self.z_var = vae_model.var
         self.beta = kld_weight
-        self.beta_hat = kld_hat_weight
         self.weight_vae = vae_weight
         self.weight_joint = joint_weight
 
@@ -43,7 +41,7 @@ class VaeRnnAgent(nn.Module):
 
         j_next = torch.tanh(j_next)
         recon_image_next = self.vision_vae.decoder(
-            z_latent_next.reshape(-1, self.z_dim)
+            z_latent_next.reshape(-1, self.latent_dim)
         )
 
         return j_next, recon_image_next
@@ -58,51 +56,25 @@ class VaeRnnAgent(nn.Module):
 
         j_next = torch.tanh(j_next)
         recon_image_next = self.vision_vae.decoder(
-            z_latent_next.reshape(-1, self.z_dim)
+            z_latent_next.reshape(-1, self.latent_dim)
         )
 
         return j_next, recon_image_next, h
 
-    def _optimize_setup(self, config_path: str):
-        with open(config_path, "r") as file:
-            config = yaml.safe_load(file)
-
-        self._batch_size = config["dataset"]["batch_size"]
-        self.train_time_step = config["dataset"]["train_time_step"]
-        optimize_setting_config = config["optimize_setting"]
-
-        self.reconst_weight = optimize_setting_config["world_model"]["reconst_weight"]
-        self.embed_weight = optimize_setting_config["world_model"]["embed_weight"]
-        self.lower_kl_weight = optimize_setting_config["world_model"]["lower_kl_weight"]
-
-        self.higher_kl_weight = optimize_setting_config["world_model"][
-            "higher_kl_weight"
-        ]
-
-        self.grad_clip = optimize_setting_config["world_model"]["grad_clip"]
-        self.lr_world_model = optimize_setting_config["world_model"]["lr"]
-        self.world_max_epochs = optimize_setting_config["world_model"]["epochs"]
-        self.world_model_optimizer = getattr(
-            optim, optimize_setting_config["world_model"]["optimizer"]
-        )(self.world_model.parameters(), lr=self.lr_world_model)
-        self.is_use_kl_balancing = optimize_setting_config["world_model"][
-            "is_use_kl_balancing"
-        ]
-        self.kl_balancing_alpha = optimize_setting_config["world_model"][
-            "kl_balancing_alpha"
-        ]
-
     def cal_loss(
-        self, i_input, i_target, j_input, j_target, i_g, criterion=nn.MSELoss()
+        self, i_input, i_target, j_input, j_target, i_g, criterion=nn.MSELoss(), flag = False
     ):
 
+        if flag:
+            gif_from_ndarray(i_input.clone().cpu().detach().numpy(), "reports/figures", "input_image")
+        
         loss_dict = {"total": 0, "vae": 0, "joint": 0, "recon": 0, "kld": 0}
         scale_adjust = (
-            i_input.shape[1] * i_input.shape[2] * i_input.shape[3] / self.z_dim
+            i_input.shape[1] * i_input.shape[2] * i_input.shape[3] / self.latent_dim
         )
 
         # vae encoder, reparameterize
-        mean, log_var = self.vision_vae.encoder(i)
+        mean, log_var = self.vision_vae.encoder(i_input)
         z_i = self.vision_vae.reparameterize(mean, log_var)
         mean_g, log_var_g = self.vision_vae.encoder(i_g)
         z_i_g = self.vision_vae.reparameterize(mean_g, log_var_g)
@@ -113,24 +85,30 @@ class VaeRnnAgent(nn.Module):
 
         j_next = torch.tanh(j_out)
         prediction_image_next = self.vision_vae.decoder(
-            z_latent_next.reshape(-1, self.z_dim)
-        )
+            z_latent_next.reshape(-1, self.latent_dim)
+        ).reshape(i_input.shape)
+        
 
+        # print(f'j_target: {j_target.shape}, j_next: {j_next.shape}')
+        # print(f'i_target: {i_target.shape}, prediction_image_next: {prediction_image_next.shape}')
         # calculate losses
         loss_joint = criterion(j_target, j_next)
         image_recon = criterion(i_target, prediction_image_next)
 
         kld = -torch.mean(1 + log_var - mean**2 - torch.exp(log_var)) / 2
 
-        loss_vae = image_recon * scale_adjust / (self.var * 2) + self.beta * kld
+        loss_vae = image_recon * scale_adjust / (self.vision_vae.var * 2) + self.beta * kld
 
         loss = self.weight_vae * loss_vae + self.weight_joint * loss_joint
 
-        loss_dict["total"] = loss.copy().detach()
-        loss_dict["vae"] = loss_vae.copy().detach()
-        loss_dict["joint"] = loss_joint.copy().detach()
-        loss_dict["recon"] = image_recon.copy().detach()
-        loss_dict["kld"] = kld.copy().detach()
+        loss_dict["total"] = loss.clone().detach()
+        loss_dict["vae"] = loss_vae.clone().detach()
+        loss_dict["joint"] = loss_joint.clone().detach()
+        loss_dict["recon"] = image_recon.clone().detach()
+        loss_dict["kld"] = kld.clone().detach()
+        
+        if flag:
+            gif_from_ndarray(prediction_image_next.clone().cpu().detach().numpy(), "reports/figures", "prediction_next_image")
 
         return loss, loss_dict
 
@@ -139,62 +117,63 @@ class VaeRnnAgent(nn.Module):
         train_datalaoder: DataLoader,
         val_datalaoder: DataLoader,
         epochs: int,
+        optimizer: torch.optim.Optimizer,
+        scheduler: torch.optim.lr_scheduler,
         criterion=nn.MSELoss(),
     ):
 
         is_train_model = input("Do you want to train the model? (y/n): ")
 
-        if is_train_model == "n":
+        if is_train_model != "y":
             return None
 
         train_loss_dict = {
-            "train_world": [],
-            "train_reconst": [],
-            "train_lower_kld": [],
-            "train_higher_kld": [],
-            "train_embed": [],
+            "train_total": [],
+            "train_vae": [],
+            "train_joint": [],
+            "train_recon": [],
+            "train_kld": [],
         }
         val_loss_dict = {
-            "val_world": [],
-            "val_reconst": [],
-            "val_lower_kl": [],
-            "val_higher_kl": [],
-            "val_embed": [],
+            "val_total": [],
+            "val_vae": [],
+            "val_joint": [],
+            "val_recon": [],
+            "val_kld": [],
         }
-
-        optimizer = torch.optim.Adam(self.parameters(), lr=1e-3)
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=100, gamma=0.5)
-
-        train_loss_dict = {"total": [], "vae": [], "joint": [], "recon": [], "kld": []}
-        val_loss_dict = {"total": [], "vae": [], "joint": [], "recon": [], "kld": []}
-
-        for epoch in range(epochs):
+        flag = False
+        for epoch in tqdm(range(epochs)):
             self.train()
             for i_input, i_target, j_pre, j_target, i_g in train_datalaoder:
                 optimizer.zero_grad()
                 loss, loss_dict = self.cal_loss(
-                    i_input, i_target, j_pre, j_target, i_g, criterion
+                    i_input, i_target, j_pre, j_target, i_g, criterion, flag
                 )
                 loss.backward()
                 optimizer.step()
-                train_loss_dict["total"].append(loss_dict["total"])
-                train_loss_dict["vae"].append(loss_dict["vae"])
-                train_loss_dict["joint"].append(loss_dict["joint"])
-                train_loss_dict["recon"].append(loss_dict["recon"])
-                train_loss_dict["kld"].append(loss_dict["kld"])
-
+                train_loss_dict["train_total"].append(loss_dict["total"])
+                train_loss_dict["train_vae"].append(loss_dict["vae"])
+                train_loss_dict["train_joint"].append(loss_dict["joint"])
+                train_loss_dict["train_recon"].append(loss_dict["recon"])
+                train_loss_dict["train_kld"].append(loss_dict["kld"])
+                
+                optimizer.step()
+                if scheduler is not None:
+                    scheduler.step()
+                    
+                if epoch == epochs - 2:
+                    flag = True
+                    
             self.eval()
             with torch.no_grad():
                 for i_input, i_target, j_pre, j_target, i_g in val_datalaoder:
                     loss, loss_dict = self.cal_loss(
                         i_input, i_target, j_pre, j_target, i_g, criterion
                     )
-                    val_loss_dict["total"].append(loss_dict["total"])
-                    val_loss_dict["vae"].append(loss_dict["vae"])
-                    val_loss_dict["joint"].append(loss_dict["joint"])
-                    val_loss_dict["recon"].append(loss_dict["recon"])
-                    val_loss_dict["kld"].append(loss_dict["kld"])
+                    val_loss_dict["val_total"].append(loss_dict["total"])
+                    val_loss_dict["val_vae"].append(loss_dict["vae"])
+                    val_loss_dict["val_joint"].append(loss_dict["joint"])
+                    val_loss_dict["val_recon"].append(loss_dict["recon"])
+                    val_loss_dict["val_kld"].append(loss_dict["kld"])
 
-            scheduler.step()
-
-        return train_loss_dict, val_loss_dict
+        return train_loss_dict, val_loss_dict, epoch+1

@@ -1,5 +1,8 @@
 reports/figures
 data/raw
+data/processed
 nohup.out
 .venv
 .DS_Store
+__pycache__
+models/

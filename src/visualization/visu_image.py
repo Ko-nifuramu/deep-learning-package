@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-
+import matplotlib.animation as anime
 
 def save_image(image: np.ndarray, save_folder_path: str, file_name: str):
     """
@@ -11,6 +11,24 @@ def save_image(image: np.ndarray, save_folder_path: str, file_name: str):
     plt.imshow(image)
 
     plt.savefig(save_path)
+
+
+def gif_from_ndarray(image_data: np.ndarray, save_path: str, gif_name: str):
+    gif_list = []
+    print("-----making gif..... ------")
+    print(f"input_image: {image_data.shape}")
+    image_data = image_data[0]  # 一番目のデータをgifにする
+    image_data = image_data.transpose(0, 2, 3, 1)
+    print(f"gif_image: {image_data.shape}")
+
+    fig = plt.figure()
+
+    for i in range(image_data.shape[0]):
+        img = [plt.imshow(image_data[i])]
+        gif_list.append(img)
+
+    ani = anime.ArtistAnimation(fig, gif_list, interval=100)
+    ani.save(f"{save_path}/{gif_name}_double_spped.gif", writer="pillow")
 
 
 def visualize_loss(
