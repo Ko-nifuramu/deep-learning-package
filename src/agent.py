@@ -7,6 +7,7 @@ from src.models.rnn import GRU as RNN
 from src.models.vae import VAE
 from src.visualization.visu_image import gif_from_ndarray
 
+
 class VaeRnnAgent(nn.Module):
     def __init__(
         self,
@@ -62,12 +63,21 @@ class VaeRnnAgent(nn.Module):
         return j_next, recon_image_next, h
 
     def cal_loss(
-        self, i_input, i_target, j_input, j_target, i_g, criterion=nn.MSELoss(), flag = False
+        self,
+        i_input,
+        i_target,
+        j_input,
+        j_target,
+        i_g,
+        criterion=nn.MSELoss(),
+        flag=False,
     ):
 
         if flag:
-            gif_from_ndarray(i_input.clone().cpu().detach().numpy(), "reports/figures", "input_image")
-        
+            gif_from_ndarray(
+                i_input.clone().cpu().detach().numpy(), "reports/figures", "input_image"
+            )
+
         loss_dict = {"total": 0, "vae": 0, "joint": 0, "recon": 0, "kld": 0}
         scale_adjust = (
             i_input.shape[1] * i_input.shape[2] * i_input.shape[3] / self.latent_dim
@@ -87,17 +97,16 @@ class VaeRnnAgent(nn.Module):
         prediction_image_next = self.vision_vae.decoder(
             z_latent_next.reshape(-1, self.latent_dim)
         ).reshape(i_input.shape)
-        
 
-        # print(f'j_target: {j_target.shape}, j_next: {j_next.shape}')
-        # print(f'i_target: {i_target.shape}, prediction_image_next: {prediction_image_next.shape}')
         # calculate losses
         loss_joint = criterion(j_target, j_next)
         image_recon = criterion(i_target, prediction_image_next)
 
         kld = -torch.mean(1 + log_var - mean**2 - torch.exp(log_var)) / 2
 
-        loss_vae = image_recon * scale_adjust / (self.vision_vae.var * 2) + self.beta * kld
+        loss_vae = (
+            image_recon * scale_adjust / (self.vision_vae.var * 2) + self.beta * kld
+        )
 
         loss = self.weight_vae * loss_vae + self.weight_joint * loss_joint
 
@@ -106,9 +115,13 @@ class VaeRnnAgent(nn.Module):
         loss_dict["joint"] = loss_joint.clone().detach()
         loss_dict["recon"] = image_recon.clone().detach()
         loss_dict["kld"] = kld.clone().detach()
-        
+
         if flag:
-            gif_from_ndarray(prediction_image_next.clone().cpu().detach().numpy(), "reports/figures", "prediction_next_image")
+            gif_from_ndarray(
+                prediction_image_next.clone().cpu().detach().numpy(),
+                "reports/figures",
+                "prediction_next_image",
+            )
 
         return loss, loss_dict
 
@@ -156,14 +169,14 @@ class VaeRnnAgent(nn.Module):
                 train_loss_dict["train_joint"].append(loss_dict["joint"])
                 train_loss_dict["train_recon"].append(loss_dict["recon"])
                 train_loss_dict["train_kld"].append(loss_dict["kld"])
-                
+
                 optimizer.step()
                 if scheduler is not None:
                     scheduler.step()
-                    
+
                 if epoch == epochs - 2:
                     flag = True
-                    
+
             self.eval()
             with torch.no_grad():
                 for i_input, i_target, j_pre, j_target, i_g in val_datalaoder:
@@ -176,4 +189,4 @@ class VaeRnnAgent(nn.Module):
                     val_loss_dict["val_recon"].append(loss_dict["recon"])
                     val_loss_dict["val_kld"].append(loss_dict["kld"])
 
-        return train_loss_dict, val_loss_dict, epoch+1
+        return train_loss_dict, val_loss_dict, epoch + 1

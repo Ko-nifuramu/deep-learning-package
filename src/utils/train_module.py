@@ -1,9 +1,7 @@
 from typing import List, Sequence
 
-import matplotlib.pyplot as plt
 import numpy as np
 import torch
-import torch.nn.functional as F
 from torch import Tensor
 
 

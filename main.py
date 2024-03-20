@@ -1,12 +1,14 @@
 import numpy as np
 import torch
+
 # import torch_optimizer as optim<- AdaBeliefとか使いたい時に使う
 import torch.optim as optim
 import yaml
 from torchinfo import summary
+
 from src.agent import VaeRnnAgent
 from src.data.make_dataloader import create_dataloader
-from src.utils.data_utils import get_device, print_np_data_info, torch_fix_seed, mkdir
+from src.utils.data_utils import get_device, mkdir, print_np_data_info, torch_fix_seed
 from src.utils.model_builder import rnn_vae_agent_model_builder
 from src.visualization.visu_loss import visualize_loss
 
@@ -17,7 +19,9 @@ def train_agent(config_name: str, config_folder_path: str):
     with open(config_path, "r") as file:
         config = yaml.safe_load(file)
 
-    image_data: np.ndarray = np.load(config["data_path"]["image_data"]).transpose(0, 1, 4, 2, 3)/255
+    image_data: np.ndarray = (
+        np.load(config["data_path"]["image_data"]).transpose(0, 1, 4, 2, 3) / 255
+    )
     joint_data: np.ndarray = np.load(config["data_path"]["joint_data"])
     print_np_data_info(image_data, "image_data")
     print_np_data_info(joint_data, "joint_data")
@@ -36,7 +40,7 @@ def train_agent(config_name: str, config_folder_path: str):
 
     agent = rnn_vae_agent_model_builder(config_path)
     agent.to(get_device())
-    
+
     summary(agent, [(5, 3, 32, 32), (5, 5), (5, 3, 32, 32)])
     agent.train()
 
@@ -44,7 +48,7 @@ def train_agent(config_name: str, config_folder_path: str):
     optimizer = getattr(optim, optimize_setting_config["optimizer"])(
         agent.parameters(), lr=optimize_setting_config["lr"]
     )
-    
+
     scheduler = None
     if "scheduler" in optimize_setting_config:
         scheduler = getattr(
@@ -57,19 +61,21 @@ def train_agent(config_name: str, config_folder_path: str):
         val_dataloader,
         epochs=optimize_setting_config["epochs"],
         optimizer=optimizer,
-        scheduler=scheduler
+        scheduler=scheduler,
     )
 
     folder_path = "models/" + config_name
     another_info = "stopepoch" + str(stop_epoch)
-    
+
     mkdir(folder_path)
-    mkdir("reports/figures/"+config_name)
+    mkdir("reports/figures/" + config_name)
     vae_model, rnn_model = agent.vision_vae, agent.rnn
     torch.save(vae_model.state_dict(), folder_path + "/vae_" + another_info)
     torch.save(rnn_model.state_dict(), folder_path + "/rnn_" + another_info)
 
-    visualize_loss(train_loss_dict, val_loss_dict, stop_epoch, "reports/figures/"+config_name)
+    visualize_loss(
+        train_loss_dict, val_loss_dict, stop_epoch, "reports/figures/" + config_name
+    )
 
 
 def test_agent(config_name: str, config_folder_path: str):

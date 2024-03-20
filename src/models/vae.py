@@ -147,7 +147,6 @@ class VaeDecoder(nn.Module):
         :return: obs_dist = size(*batch_shape, *self.shape)
         """
         batch_shape = x.shape[:-1]
-        embed_size = x.shape[-1]
         squeezed_size = np.prod(batch_shape).item()
         x = x.reshape(squeezed_size, self._latent_dim)
 
@@ -157,7 +156,6 @@ class VaeDecoder(nn.Module):
         feature_map = self.conv_tras_layer2(feature_map)
         feature_map = self.conv_tras_layer3(feature_map)
         reconst = self._reconst_activation(feature_map)
-        
         return reconst
 
 

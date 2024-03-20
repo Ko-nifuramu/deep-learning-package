@@ -1,6 +1,5 @@
 import numpy as np
 import torch
-from tqdm import tqdm
 
 
 def create_goal_image_data(vision_target_data: np.ndarray) -> np.ndarray:

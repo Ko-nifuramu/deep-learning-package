@@ -1,0 +1,5 @@
+[flake8]
+ignore=E402, D203, W503, E203
+exclude=tests
+max-line-length=88
+max-complexity=10

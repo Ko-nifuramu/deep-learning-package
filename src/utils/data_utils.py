@@ -1,27 +1,29 @@
-import random
 import os
+import random
+
 import numpy as np
 import torch
-
 
 
 def mkdir(path):
     try:
         os.makedirs(path)
-    except OSError as e:
+    except OSError:
         print("this dirctory is already made or a wrong path is given.")
 
+
 def print_np_data_info(data: np.ndarray, data_name: str) -> None:
-    
-    print('--------'+ data_name +'--------')
+
+    print("--------" + data_name + "--------")
     print(f"type(data) : {type(data)}")
     print(f"data.dtype : {data.dtype}")
     print(f"data.shape : {data.shape}")
     print(f"data_max : {np.max(data)}")
     print(f"data_min : {np.min(data)}")
-    
+
+
 def print_tensor_data_info(data: torch.Tensor, data_name: str) -> None:
-    print('--------'+ data_name +'--------')
+    print("--------" + data_name + "--------")
     print(f"type(data) : {type(data)}")
     print(f"data.dtype : {data.dtype}")
     print(f"data.shape : {data.shape}")

@@ -1,7 +1,7 @@
+import matplotlib.animation as anime
 import matplotlib.pyplot as plt
 import numpy as np
-import torch
-import matplotlib.animation as anime
+
 
 def save_image(image: np.ndarray, save_folder_path: str, file_name: str):
     """

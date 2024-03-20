@@ -14,14 +14,13 @@ def create_dataloader(
     joint_noise_std: float,
     trainsample_ratio: float = 0.8,
 ) -> DataLoader:
-    
-    
-    print(f'image_data.shape : {image_data.shape}')
-    print(f'joint_data.shape : {joint_data.shape}')
-    print(f'batch_size : {batch_size}')
-    print(f'image_noise_std : {image_noise_std}')
-    print(f'joint_noise_std : {joint_noise_std}')
-    print(f'trainsample_ratio : {trainsample_ratio}')
+
+    print(f"image_data.shape : {image_data.shape}")
+    print(f"joint_data.shape : {joint_data.shape}")
+    print(f"batch_size : {batch_size}")
+    print(f"image_noise_std : {image_noise_std}")
+    print(f"joint_noise_std : {joint_noise_std}")
+    print(f"trainsample_ratio : {trainsample_ratio}")
 
     joint_data, joint_eachdim_maxmin_array = joint_regularization(joint_data)
     ratio = trainsample_ratio

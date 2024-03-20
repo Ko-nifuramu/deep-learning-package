@@ -50,16 +50,10 @@ def visualize_joint_test(
             ax.plot(joint_target_data[i, :, j], ":", color=target_color)
             ax.legend(legend_label, loc="center left", bbox_to_anchor=(1.0, 0.5))
 
-            ax.set_xlabel(
-                f"dim {j+1}...\
-                        mae={cal_MSE(joint_target_data[i, :, j], joint_predictions[i, :, j])}\
-                        max_diff={cal_max_differency(joint_target_data[i, :, j], joint_predictions[i, :, j])}"
-            )
-
             mean_mse_loss += cal_MSE(
                 joint_target_data[i, :, j], joint_predictions[i, :, j]
             )
     plt.suptitle(
-        f"compare_predictions_targets....... mean_mse_loss : {mean_mse_loss/(5*data_num)}"
+        f"compare_predictions_targets(mean_mse_loss : {mean_mse_loss/(5*data_num)})"
     )
     plt.savefig(joint_image_path + "compare_predictions_targets_data")

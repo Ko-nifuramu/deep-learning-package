@@ -1,11 +1,9 @@
-import torch.distributions as td
 import torch.nn as nn
 import yaml
 
 from src.agent import VaeRnnAgent
 from src.models.rnn import GRU
 from src.models.vae import VAE, VaeDecoder, VaeEncoder
-
 from src.utils.data_utils import get_device
 
 
@@ -61,7 +59,7 @@ def vae_builder(config_path: str):
         strides=encoder_params["strides"],
         paddings=encoder_params["paddings"],
         latent_dim=latent_dim,
-        activation=getattr(nn, config['vae']['conv_activation']),
+        activation=getattr(nn, config["vae"]["conv_activation"]),
     )
 
     decoder = VaeDecoder(
@@ -71,8 +69,8 @@ def vae_builder(config_path: str):
         strides=decoder_params["strides"],
         paddings=decoder_params["paddings"],
         latent_dim=latent_dim,
-        conv_activation=getattr(nn, config['vae']['conv_activation']),
-        reconst_activation=getattr(nn, config['vae']['reconst_activation']),
+        conv_activation=getattr(nn, config["vae"]["conv_activation"]),
+        reconst_activation=getattr(nn, config["vae"]["reconst_activation"]),
     )
 
     return VAE(get_device(), latent_dim, encoder, decoder)
@@ -85,13 +83,13 @@ def rnn_vae_agent_model_builder(config_path: str):
     config = load_config(config_path)
 
     agent_model = VaeRnnAgent(
-        obs_shape=config['dataset']["obs_shape"],
-        joint_dim=config['dataset']["joint_dim"],
-        latent_dim=config['vae']["latent_dim"],
+        obs_shape=config["dataset"]["obs_shape"],
+        joint_dim=config["dataset"]["joint_dim"],
+        latent_dim=config["vae"]["latent_dim"],
         vae_model=vae_model,
         rnn_model=rnn_model,
-        kld_weight=config['optimize_setting']["kld_weight"],
-        vae_weight=config['optimize_setting']["vae_weight"],
-        joint_weight=config['optimize_setting']["joint_weight"],
+        kld_weight=config["optimize_setting"]["kld_weight"],
+        vae_weight=config["optimize_setting"]["vae_weight"],
+        joint_weight=config["optimize_setting"]["joint_weight"],
     )
     return agent_model
