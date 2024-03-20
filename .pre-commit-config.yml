@@ -1,9 +1,0 @@
-repos:
-    - repo: local
-    hooks:
-        -   id: task-linter
-            name: Task Linter
-            entry: task linter
-            language: system
-            types: [python] # この行は実行するファイルタイプに応じて調整してください
-            stages: [commit]
