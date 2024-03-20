@@ -1,0 +1,12 @@
+version: '3'
+
+tasks:
+
+  formatter:
+    cmds:
+      - black .
+      - isort .
+    
+  linter:
+    cmds:
+      - flake8 src/

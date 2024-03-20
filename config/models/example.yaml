@@ -1,0 +1,71 @@
+seed: 12
+
+data_path:
+  image_data: "data/processed/image_data.npy"
+  joint_data: "data/processed/joint_data.npy"
+
+device:
+  gpu_id: 0
+
+dataset:
+  obs_shape: 
+    - 3
+    - 48
+    - 64
+  joint_dim: 5
+  image_noise_std: 0.05
+  joint_noise_std: 0.05
+  trainsample_ratio: 0.8
+  batch_size: 5
+
+optimize_setting:
+  epochs: 500
+  lr: 0.001
+  kld_weight: 1
+  vae_weight: 1
+  joint_weight: 1
+  optimizer: Adam
+  grad_clip: 100
+  is_scheduler: False
+  scheduler:
+    name: StepLR
+    params:
+      step_size: 100
+      gamma: 0.5
+  is_earlystopping: False
+  earlystopping:
+    patience: 100
+    delta: 0.0001
+  
+
+rnn:
+  activation: ReLU
+  parameter:
+    input_dim: 53 # latent_dim+latent_dim+joint_dim
+    rnn_hidden_dim: 64  
+    num_layers: 1
+    joint_dim: 5
+    latent_dim: 24
+    mean_hidden_dims: []
+    log_var_hidden_dims: []
+    joint_hidden_dims: []
+    activation: ReLU
+
+
+vae:
+  conv_activation: ReLU
+  reconst_activation: Sigmoid
+  latent_dim: 24
+  parameter:
+    encoder:
+      obs_shape: [3, 32, 32]
+      channels: [4, 8, 16]
+      kernels: [3, 3, 3]
+      strides: [1, 2, 2]
+      paddings: [1, 1, 0]
+    decoder:
+      obs_shape: [3, 32, 32]
+      channels: [32, 16, 8]
+      kernels: [4, 4, 4]
+      strides: [2, 2, 2]
+      paddings: [1, 1, 1]

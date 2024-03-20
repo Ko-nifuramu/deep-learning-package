@@ -1,107 +1,95 @@
-import yaml
 import torch.nn as nn
-import torch.distributions as td
+import yaml
+
+from src.agent import VaeRnnAgent
+from src.models.rnn import GRU
+from src.models.vae import VAE, VaeDecoder, VaeEncoder
+from src.utils.data_utils import get_device
 
 
+# 正直、環境変数に読み込んだほうがいいかも
 def load_config(config_path):
     with open(config_path, "r") as file:
         config = yaml.safe_load(file)
     return config
 
 
-def world_model_builder(config_path: str):
+def rnn_builder(config_path: str):
     config = load_config(config_path)
 
-    world_config = config["world_model"]
-    embed_size = world_config["embed_obs_dim"]
+    rnn_config = config["rnn"]
+    rnn_hidden_dim = rnn_config["parameter"]["rnn_hidden_dim"]
+    num_layers = rnn_config["parameter"]["num_layers"]
+    input_dim = rnn_config["parameter"]["input_dim"]
+    latent_dim = rnn_config["parameter"]["latent_dim"]
+    joint_dim = rnn_config["parameter"]["joint_dim"]
+    activation = getattr(nn, rnn_config["activation"])
 
-    rssm_config = world_config["rssm"]
+    mean_hidden_dims = rnn_config["parameter"]["mean_hidden_dims"]
+    log_var_hidden_dims = rnn_config["parameter"]["log_var_hidden_dims"]
+    joint_hidden_dims = rnn_config["parameter"]["joint_hidden_dims"]
 
-    train_time_step = config["dataset"]["train_time_step"]
-
-    rssm_model = RSSMRepresentation(
-        obs_embed_size=embed_size,
-        action_size=world_config["action_size"],
-        stoch_size=rssm_config["parameter"]["stoch_size"],
-        deter_size=rssm_config["parameter"]["deter_size"],
-        hidden_size=rssm_config["parameter"]["hidden_size"],
-        categorical_classes=rssm_config["parameter"]["categorical_classes"],
-        softmax_temperature=rssm_config["parameter"]["softmax_temperature"],
-        _activation=getattr(nn, rssm_config["activation"]),
-        dist_name=rssm_config["stoch_dist_name"],
-        rnn=getattr(nn, rssm_config["rnn"]),
+    rnn_model = GRU(
+        latent_dim=latent_dim,
+        joint_dim=joint_dim,
+        input_dim=input_dim,
+        rnn_hidden_dim=rnn_hidden_dim,
+        num_layers=num_layers,
+        mean_hidden_dims=mean_hidden_dims,
+        log_var_hidden_dims=log_var_hidden_dims,
+        joint_hidden_dims=joint_hidden_dims,
+        activation=activation,
     )
 
-    encoder_config = world_config["vae"]["parameter"]["encoder"]
-
-    image_shape = tuple(encoder_config["obs_shape"])
-    obs_encoder_model = ObserEncoder(
-        image_shape=image_shape,
-        channels=tuple(encoder_config["channels"]),
-        kernels=tuple(encoder_config["kernels"]),
-        strides=tuple(encoder_config["strides"]),
-        paddings=tuple(encoder_config["paddings"]),
-        embed_size=world_config["embed_obs_dim"],
-        activation=getattr(nn, world_config["vae"]["conv_activation"]),
-    )
-
-    decoder_config = world_config["vae"]["parameter"]["decoder"]
-
-    obs_decoder_model = ObserDecoder(
-        image_shape=image_shape,
-        channels=tuple(decoder_config["channels"]),
-        kernels=tuple(decoder_config["kernels"]),
-        strides=tuple(decoder_config["strides"]),
-        paddings=tuple(decoder_config["paddings"]),
-        dist_std=decoder_config["dist_std"],
-        feature_size=rssm_config["parameter"]["stoch_size"]
-        + rssm_config["parameter"]["deter_size"],
-        embed_size=world_config["embed_obs_dim"],
-        activation=getattr(nn, world_config["vae"]["conv_activation"]),
-    )
-
-    return WorldModel(
-        image_shape,
-        obs_encoder_model,
-        obs_decoder_model,
-        rssm_model,
-        train_time_step=train_time_step,
-    )
+    return rnn_model
 
 
-def MultiLabelImageClassifier_builder(config_path: str):
+def vae_builder(config_path: str):
     config = load_config(config_path)
 
-    parameter_config = config["parameter"]
+    encoder_params = config["vae"]["parameter"]["encoder"]
+    decoder_params = config["vae"]["parameter"]["decoder"]
 
-    image_classifier_model = MultiLabelImageClassifier(
-        image_shape=tuple(parameter_config["cnn"]["image_shape"]),
-        channels=tuple(parameter_config["cnn"]["channels"]),
-        kernels=tuple(parameter_config["cnn"]["kernels"]),
-        strides=tuple(parameter_config["cnn"]["strides"]),
-        paddings=tuple(parameter_config["cnn"]["paddings"]),
-        fc_hidden_size=parameter_config["fc_hidden_size"],
-        candidate_policy_num=parameter_config["candidate_policy_num"],
-        activation=getattr(nn, parameter_config["conv_activation"]),
+    latent_dim = config["vae"]["latent_dim"]
+
+    encoder = VaeEncoder(
+        obs_shape=encoder_params["obs_shape"],
+        channels=encoder_params["channels"],
+        kernels=encoder_params["kernels"],
+        strides=encoder_params["strides"],
+        paddings=encoder_params["paddings"],
+        latent_dim=latent_dim,
+        activation=getattr(nn, config["vae"]["conv_activation"]),
     )
 
-    return image_classifier_model
+    decoder = VaeDecoder(
+        obs_shape=decoder_params["obs_shape"],
+        channels=decoder_params["channels"],
+        kernels=decoder_params["kernels"],
+        strides=decoder_params["strides"],
+        paddings=decoder_params["paddings"],
+        latent_dim=latent_dim,
+        conv_activation=getattr(nn, config["vae"]["conv_activation"]),
+        reconst_activation=getattr(nn, config["vae"]["reconst_activation"]),
+    )
+
+    return VAE(get_device(), latent_dim, encoder, decoder)
 
 
-def SingleLabelImageClassifier_builder(config_path: str):
+def rnn_vae_agent_model_builder(config_path: str):
+    vae_model = vae_builder(config_path)
+    rnn_model = rnn_builder(config_path)
+
     config = load_config(config_path)
 
-    parameter_config = config["parameter"]
-
-    image_classifier_model = SingleLabelImageClassifier(
-        image_shape=tuple(parameter_config["cnn"]["image_shape"]),
-        channels=tuple(parameter_config["cnn"]["channels"]),
-        kernels=tuple(parameter_config["cnn"]["kernels"]),
-        strides=tuple(parameter_config["cnn"]["strides"]),
-        paddings=tuple(parameter_config["cnn"]["paddings"]),
-        fc_hidden_size=parameter_config["fc_hidden_size"],
-        num_of_situation_patern=parameter_config["num_of_situation_patern"],
-        activation=getattr(nn, parameter_config["conv_activation"]),
+    agent_model = VaeRnnAgent(
+        obs_shape=config["dataset"]["obs_shape"],
+        joint_dim=config["dataset"]["joint_dim"],
+        latent_dim=config["vae"]["latent_dim"],
+        vae_model=vae_model,
+        rnn_model=rnn_model,
+        kld_weight=config["optimize_setting"]["kld_weight"],
+        vae_weight=config["optimize_setting"]["vae_weight"],
+        joint_weight=config["optimize_setting"]["joint_weight"],
     )
-
-    return image_classifier_model
+    return agent_model

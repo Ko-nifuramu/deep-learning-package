@@ -1,8 +1,8 @@
-import torch
 import numpy as np
+import torch
 
 
-def create_goal_image_data(vision_target_data: np) -> np:
+def create_goal_image_data(vision_target_data: np.ndarray) -> np.ndarray:
     if len(vision_target_data.shape) == 4:
         vision_goal_data = vision_target_data[-1:, :, :, :]
     else:
@@ -21,10 +21,10 @@ def create_goal_image_data(vision_target_data: np) -> np:
 class ManipulatorDataSet(torch.utils.data.Dataset):
     def __init__(
         self,
-        vision_input_data: np,
-        vision_target_data,
-        joint_input_data: np,
-        joint_target_data: np,
+        vision_input_data: np.ndarray,
+        vision_target_data: np.ndarray,
+        joint_input_data: np.ndarray,
+        joint_target_data: np.ndarray,
         image_noise_std: float,
         joint_noise_std: float,
     ):
@@ -48,9 +48,8 @@ class ManipulatorDataSet(torch.utils.data.Dataset):
         vision_input_datum = self.v_input_data[index] + torch.normal(
             mean=0, std=self.image_noise_std, size=self.v_input_data[index].shape
         )
-        vision_target_datum = self.v_target_data[index] + torch.normal(
-            mean=0, std=self.image_noise_std, size=self.v_target_data[index].shape
-        )
+        vision_target_datum = self.v_target_data[index]
+
         joint_input_datum = self.j_input_data[index] + torch.normal(
             mean=0, std=self.joint_data_noise_std, size=self.j_input_data[index].shape
         )
@@ -66,7 +65,6 @@ class ManipulatorDataSet(torch.utils.data.Dataset):
         joint_input_datum = torch.clamp(
             joint_input_datum, min=-0.95, max=0.95
         )  # -1, 1付近も含めてしまうと活性化関数tanhで勾配消失が起きてしまう
-        joint_target_datum = torch.clamp(joint_target_datum, min=-0.95, max=0.95)
 
         return (
             vision_input_datum,
