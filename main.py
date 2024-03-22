@@ -11,6 +11,7 @@ from src.data.make_dataloader import create_dataloader
 from src.utils.data_utils import get_device, mkdir, print_np_data_info, torch_fix_seed
 from src.utils.model_builder import rnn_vae_agent_model_builder
 from src.visualization.visu_loss import visualize_loss
+from src.test.open_test import open_test
 
 
 def train_agent(config_name: str, config_folder_path: str):

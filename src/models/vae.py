@@ -60,12 +60,12 @@ class VaeEncoder(nn.Module):
             self._activation(),
         )
         self.downsample = nn.Sequential(
-            nn.Linear(linear_size, 2 * latent_dim),
+            nn.Linear(linear_size, latent_dim),
             self._activation(),
         )
-        self.mean_layer = nn.Sequential(nn.Linear(2 * latent_dim, latent_dim))
+        self.mean_layer = nn.Sequential(nn.Linear(latent_dim, latent_dim))
         self.log_var_layer = nn.Sequential(
-            nn.Linear(2 * latent_dim, latent_dim),
+            nn.Linear(latent_dim, latent_dim),
         )
 
     def forward(self, x):
@@ -211,7 +211,6 @@ class VAE(nn.Module):
         kl = (
             -self.beta * torch.mean(1 + log_var - mean**2 - torch.exp(log_var)) / 2
         )  # beta_vae
-        # print("reconstruction : {}".format(reconstruction.shape))
-        # print("KL : {}".format(kl.shape))
+
         loss = reconstruction + kl
         return loss
