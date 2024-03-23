@@ -1,5 +1,4 @@
 import torch.nn as nn
-import yaml
 
 from src.agent import VaeRnnAgent
 from src.models.rnn import GRU
@@ -7,15 +6,7 @@ from src.models.vae import VAE, VaeDecoder, VaeEncoder
 from src.utils.data_utils import get_device
 
 
-# 正直、環境変数に読み込んだほうがいいかも
-def load_config(config_path):
-    with open(config_path, "r") as file:
-        config = yaml.safe_load(file)
-    return config
-
-
-def rnn_builder(config_path: str):
-    config = load_config(config_path)
+def rnn_builder(config: dict):
 
     rnn_config = config["rnn"]
     rnn_hidden_dim = rnn_config["parameter"]["rnn_hidden_dim"]
@@ -44,8 +35,7 @@ def rnn_builder(config_path: str):
     return rnn_model
 
 
-def vae_builder(config_path: str):
-    config = load_config(config_path)
+def vae_builder(config: dict):
 
     encoder_params = config["vae"]["parameter"]["encoder"]
     decoder_params = config["vae"]["parameter"]["decoder"]
@@ -76,11 +66,9 @@ def vae_builder(config_path: str):
     return VAE(get_device(), latent_dim, encoder, decoder)
 
 
-def rnn_vae_agent_model_builder(config_path: str):
-    vae_model = vae_builder(config_path)
-    rnn_model = rnn_builder(config_path)
-
-    config = load_config(config_path)
+def rnn_vae_agent_model_builder(config: dict):
+    vae_model = vae_builder(config)
+    rnn_model = rnn_builder(config)
 
     agent_model = VaeRnnAgent(
         obs_shape=config["dataset"]["obs_shape"],

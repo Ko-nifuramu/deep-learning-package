@@ -73,7 +73,7 @@ class VaeEncoder(nn.Module):
         out = self.conv_layer1(x)
         out = self.conv_layer2(out)
         out = self.conv_layer3(out)
-        out = out.view(out.size(0), -1)
+        out = out.reshape(out.size(0), -1)
         out = self.downsample(out)
 
         mean = self.mean_layer(out)

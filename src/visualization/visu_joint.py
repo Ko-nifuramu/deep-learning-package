@@ -20,10 +20,12 @@ def cal_max_differency(joint_targets: np, joint_predictions: np) -> float:
 
 
 def visualize_joint_test(
-    joint_predictions: np, joint_target_data: np, data_num: int, joint_image_path: str
+    joint_predictions: np, joint_target_data: np, report_path: str
 ):
     joint_predictions = joint_predictions.detach().cpu().numpy()
     joint_target_data = joint_target_data.detach().cpu().numpy()
+
+    data_num = joint_predictions.shape[0] if len(joint_predictions.shape) == 3 else 1
 
     joint_dim = joint_predictions.shape[-1]
 
@@ -39,7 +41,7 @@ def visualize_joint_test(
     for i in range(data_num):
         for j in range(joint_dim):
             ax = fig.add_subplot(3, 2, j + 1)
-            ax.set_xlim(1, 80)
+            ax.set_xlim(1, 50)
             if i % 2 == 0:
                 pre_color = "royalblue"
                 target_color = "deepskyblue"
@@ -56,4 +58,4 @@ def visualize_joint_test(
     plt.suptitle(
         f"compare_predictions_targets(mean_mse_loss : {mean_mse_loss/(5*data_num)})"
     )
-    plt.savefig(joint_image_path + "compare_predictions_targets_data")
+    plt.savefig(report_path + "_compare_predictions_targets_data")

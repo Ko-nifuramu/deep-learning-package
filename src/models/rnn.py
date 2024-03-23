@@ -57,7 +57,8 @@ class GRU(nn.Module):
         z_i_t = z_i_t.reshape(j_pre.shape[0], -1, self.latent_dim)
         z_i_g = z_i_g.reshape(j_pre.shape[0], -1, self.latent_dim)
         j_pre = j_pre.reshape(j_pre.shape[0], -1, self.joint_dim)
-        x = torch.concat([z_i_t, z_i_g, j_pre], dim=2)
+        
+        x = torch.concat([z_i_t, z_i_g, j_pre], dim=-1)
 
         x, h_next = self.rnn(x, h_pre)
 

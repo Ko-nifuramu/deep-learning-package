@@ -8,17 +8,25 @@ from torchinfo import summary
 
 from src.agent import VaeRnnAgent
 from src.data.make_dataloader import create_dataloader
+from src.test.closed_test import closed_test
+from src.test.open_test import open_test
 from src.utils.data_utils import get_device, mkdir, print_np_data_info, torch_fix_seed
 from src.utils.model_builder import rnn_vae_agent_model_builder
 from src.visualization.visu_loss import visualize_loss
-from src.test.open_test import open_test
 
 
-def train_agent(config_name: str, config_folder_path: str):
-    config_path = config_folder_path + config_name + ".yaml"
-
+# 正直、環境変数に読み込んだほうがいいかも
+def load_config(config_path):
     with open(config_path, "r") as file:
         config = yaml.safe_load(file)
+    return config
+
+
+def train_agent(config: dict, config_name: str):
+
+    print(f"=========================\n agent training....\n=========================")
+
+    dataset_params = config["dataset"]
 
     image_data: np.ndarray = (
         np.load(config["data_path"]["image_data"]).transpose(0, 1, 4, 2, 3) / 255
@@ -27,7 +35,6 @@ def train_agent(config_name: str, config_folder_path: str):
     print_np_data_info(image_data, "image_data")
     print_np_data_info(joint_data, "joint_data")
 
-    dataset_params = config["dataset"]
     train_dataloader, val_dataloader = create_dataloader(
         image_data,
         joint_data,
@@ -37,9 +44,7 @@ def train_agent(config_name: str, config_folder_path: str):
         dataset_params["trainsample_ratio"],
     )
 
-    print(f"=========================\n agent training....\n=========================")
-
-    agent = rnn_vae_agent_model_builder(config_path)
+    agent = rnn_vae_agent_model_builder(config)
     agent.to(get_device())
 
     summary(agent, [(5, 3, 32, 32), (5, 5), (5, 3, 32, 32)])
@@ -71,46 +76,113 @@ def train_agent(config_name: str, config_folder_path: str):
     mkdir(folder_path)
     mkdir("reports/figures/" + config_name)
     vae_model, rnn_model = agent.vision_vae, agent.rnn
-    torch.save(vae_model.state_dict(), folder_path + "/vae_" + another_info)
-    torch.save(rnn_model.state_dict(), folder_path + "/rnn_" + another_info)
+    torch.save(vae_model.state_dict(), folder_path + "/vae_" + another_info + ".pth")
+    torch.save(rnn_model.state_dict(), folder_path + "/rnn_" + another_info + ".pth")
 
     visualize_loss(
         train_loss_dict, val_loss_dict, stop_epoch, "reports/figures/" + config_name
     )
 
 
-def test_agent(config_name: str, config_folder_path: str):
-    config_path = config_folder_path + config_name + ".yaml"
+def test_agent(config: dict, config_name: str):
+    print(f"=========================\n agent testing....\n=========================")
 
-    with open(config_path, "r") as file:
-        config = yaml.safe_load(file)
+    dataset_params = config["dataset"]
 
-    image_data: np.ndarray = np.load(config["data_path"]["image_data"])  # uint8
-    joint_data: np.ndarray = np.load(config["data_path"]["joint_data"])
-    agent_model = VaeRnnAgent(model_name=config_name, config_path=config_path)
-    agent_model.vae.load_state_dict(
-        torch.load(
-            "data/saved_model/world_model/"
-            + config_name
-            + "/stopepoch7500_mtrssmWorldModel.pth"
-        )
+    image_data: np.ndarray = (
+        np.load(config["data_path"]["image_data"]).transpose(0, 1, 4, 2, 3) / 255
     )
+    joint_data: np.ndarray = np.load(config["data_path"]["joint_data"])
+    print_np_data_info(image_data, "image_data")
+    print_np_data_info(joint_data, "joint_data")
+
+    train_dataloader, val_dataloader = create_dataloader(
+        image_data,
+        joint_data,
+        dataset_params["batch_size"],
+        0,
+        0,
+        dataset_params["trainsample_ratio"],
+    )
+
+    agent_model = rnn_vae_agent_model_builder(config)
+    agent_model.vision_vae.load_state_dict(
+        torch.load("models/" + config_name + "/vae_stopepoch5000.pth")
+    )
+    agent_model.rnn.load_state_dict(
+        torch.load("models/" + config_name + "/rnn_stopepoch5000.pth")
+    )
+
+    report_path = "reports/figures/" + config_name
+    mkdir(report_path + "/open_test")
+    mkdir(report_path + "/closed_test")
+
+    for i_input, i_target, j_pre, j_target, i_g in train_dataloader:
+        open_test(
+            agent_model,
+            i_input,
+            i_target,
+            j_pre,
+            j_target,
+            i_g,
+            report_path + "/open_test/",
+            "train",
+        )
+        closed_test(
+            agent_model,
+            i_input,
+            i_target,
+            j_pre,
+            j_target,
+            i_g,
+            report_path + "/closed_test/",
+            "train",
+        )
+        break
+
+    for i_input, i_target, j_pre, j_target, i_g in val_dataloader:
+        open_test(
+            agent_model,
+            i_input,
+            i_target,
+            j_pre,
+            j_target,
+            i_g,
+            report_path + "/open_test/",
+            "val",
+        )
+        closed_test(
+            agent_model,
+            i_input,
+            i_target,
+            j_pre,
+            j_target,
+            i_g,
+            report_path + "/closed_test/",
+            "val",
+        )
+        break
 
 
 def main():
     torch_fix_seed(42)
 
     is_train_agent = True
-    is_test_agent = False
+    is_test_agent = True
 
-    config_agent_name_list = ["example"]
+    config_agent_name_list = ["joint_reconst_important"]
 
     for config_name in config_agent_name_list:
+
         config_folder_path = "config/models/"
+        config_path = config_folder_path + config_name + ".yaml"
+
+        config = load_config(config_path)
+
         if is_train_agent:
-            train_agent(config_name, config_folder_path)
+            train_agent(config, config_name)
         if is_test_agent:
-            test_agent(config_name, config_folder_path)
+            test_agent(config, config_name)
 
     return 0
 

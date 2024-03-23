@@ -5,7 +5,6 @@ from tqdm import tqdm
 
 from src.models.rnn import GRU as RNN
 from src.models.vae import VAE
-from src.visualization.visu_image import gif_from_ndarray
 
 
 class VaeRnnAgent(nn.Module):
@@ -38,14 +37,14 @@ class VaeRnnAgent(nn.Module):
         z_i_pre = self.vision_vae.forward_z(i_pre)
         z_i_g = self.vision_vae.forward_z(i_g)
         mean_hat, log_var_hat, j_next = self.rnn(z_i_pre, z_i_g, j_pre)
-        z_latent_next = self.vision_vae.reparameterize(mean_hat, log_var_hat)
+        z_i_next = self.vision_vae.reparameterize(mean_hat, log_var_hat)
 
         j_next = torch.tanh(j_next)
         recon_image_next = self.vision_vae.decoder(
-            z_latent_next.reshape(-1, self.latent_dim)
+            z_i_next.reshape(-1, self.latent_dim)
         )
 
-        return j_next, recon_image_next
+        return j_next, recon_image_next, z_i_pre, z_i_next
 
     def test_step(self, i_pre, j_pre, i_g, h):
         z_i_pre = self.vision_vae.forward_z(i_pre)
@@ -70,13 +69,7 @@ class VaeRnnAgent(nn.Module):
         j_target,
         i_g,
         criterion=nn.MSELoss(),
-        flag=False,
     ):
-
-        if flag:
-            gif_from_ndarray(
-                i_input.clone().cpu().detach().numpy(), "reports/figures", "input_image"
-            )
 
         loss_dict = {"total": 0, "vae": 0, "joint": 0, "recon": 0, "kld": 0}
         scale_adjust = (
@@ -116,13 +109,6 @@ class VaeRnnAgent(nn.Module):
         loss_dict["recon"] = image_recon.clone().detach()
         loss_dict["kld"] = kld.clone().detach()
 
-        if flag:
-            gif_from_ndarray(
-                prediction_image_next.clone().cpu().detach().numpy(),
-                "reports/figures",
-                "prediction_next_image",
-            )
-
         return loss, loss_dict
 
     def fit(
@@ -154,13 +140,12 @@ class VaeRnnAgent(nn.Module):
             "val_recon": [],
             "val_kld": [],
         }
-        flag = False
         for epoch in tqdm(range(epochs)):
             self.train()
             for i_input, i_target, j_pre, j_target, i_g in train_datalaoder:
                 optimizer.zero_grad()
                 loss, loss_dict = self.cal_loss(
-                    i_input, i_target, j_pre, j_target, i_g, criterion, flag
+                    i_input, i_target, j_pre, j_target, i_g, criterion
                 )
                 loss.backward()
                 optimizer.step()
@@ -173,9 +158,6 @@ class VaeRnnAgent(nn.Module):
                 optimizer.step()
                 if scheduler is not None:
                     scheduler.step()
-
-                if epoch == epochs - 2:
-                    flag = True
 
             self.eval()
             with torch.no_grad():
